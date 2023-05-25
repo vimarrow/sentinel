@@ -1,0 +1,27 @@
+[package]
+name = "satellite"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+axum = { version = "0.5.17", features = ["headers"] }
+headers = { version = "0.3" }
+once_cell = { version = "1.8" }
+tokio = { version = "1.0", features = ["full", "macros", "rt-multi-thread"] }
+tower = { version = "0.4", features = ["util", "timeout", "load-shed", "limit"] }
+tower-http = { version = "0.4.0", features = [
+    "add-extension",
+    "auth",
+    "compression-full",
+    "limit",
+    "trace",
+    "cors"
+] }
+tower-layer = "0.3.2"
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+jsonwebtoken = { version = "8.0" }
