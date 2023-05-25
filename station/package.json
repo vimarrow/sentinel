@@ -4,11 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config vite-config.js",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@material/web": "^1.0.0-pre.8",
     "lit": "^2.6.1"
   },
   "devDependencies": {

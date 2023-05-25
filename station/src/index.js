@@ -1,25 +1,19 @@
+import './components/app_bar';
+
+/*import '@material/web/button/filled-button.js';
+import '@material/web/button/outlined-button.js';
+import '@material/web/checkbox/checkbox.js';
+
 import { LitElement, css, html } from 'lit'
 import litLogo from './assets/lit.svg'
 import viteLogo from '/vite.svg'
 
-/**
- * An example element.
- *
- * @slot - This element has a slot
- * @csspart button - The button
- */
 export class MyElement extends LitElement {
   static get properties() {
     return {
-      /**
-       * Copy for the read the docs hint.
-       */
-      docsHint: { type: String },
+           docsHint: { type: String },
 
-      /**
-       * The number of times the button has been clicked.
-       */
-      count: { type: Number },
+            count: { type: Number },
     }
   }
 
@@ -44,6 +38,13 @@ export class MyElement extends LitElement {
         <button @click=${this._onClick} part="button">
           count is ${this.count}
         </button>
+        <label>
+          Material 3
+          <md-checkbox checked></md-checkbox>
+        </label>
+
+        <md-outlined-button>Back</md-outlined-button>
+        <md-filled-button>Next</md-filled-button>
       </div>
       <p class="read-the-docs">${this.docsHint}</p>
     `
@@ -129,3 +130,4 @@ export class MyElement extends LitElement {
 }
 
 window.customElements.define('my-element', MyElement)
+*/
