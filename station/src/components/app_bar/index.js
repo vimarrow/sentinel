@@ -1,4 +1,4 @@
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html } from 'lit';
 
 export class AppBar extends LitElement {
   static get properties() {
@@ -12,8 +12,8 @@ export class AppBar extends LitElement {
 
   render() {
     return html`
-      <div>
-        Meow
+      <div class="top_bar" @style="meow">
+        ${`Meow`}
       </div>
     `
   }
@@ -25,6 +25,12 @@ export class AppBar extends LitElement {
   static get styles() {
     return css`
       :host {
+        background: red;
+        visibili
+      }
+      .top_bar {
+        display: block;
+        position: absolute;
       }
     `
   }

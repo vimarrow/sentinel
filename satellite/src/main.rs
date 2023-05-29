@@ -6,6 +6,7 @@ use std::{
     str::from_utf8,
     fmt::Display,
     time::SystemTime,
+    os::unix::net::UnixStream,
 };
 use axum::{
     async_trait,
@@ -26,17 +27,33 @@ use tower_http::{
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+// use serde_json::json;
 use tower::{BoxError, ServiceBuilder};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Algorithm, Validation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-#[derive(Default)]
 struct AppState {
-    db: HashMap<String, Bytes>,
+    star: RwLock<UnixStream>,
+    sonar: RwLock<UnixStream>,
+    store: RwLock<UnixStream>,
+    session: RwLock<HashMap<String, Bytes>>
 }
 
-type SharedState = Arc<RwLock<AppState>>;
+impl AppState {
+    fn new() -> AppState {
+        let star = UnixStream::connect("/path/to/my/socket").unwrap();
+        let sonar = UnixStream::connect("/path/to/my/socket").unwrap();
+        let store = UnixStream::connect("/path/to/my/socket").unwrap();
+        AppState {
+            star: RwLock::new(star),
+            sonar: RwLock::new(sonar), 
+            store: RwLock::new(store),
+            session: RwLock::new(HashMap::<String, Bytes>::new())
+        }
+    }
+}
+
+type SharedState = Arc<AppState>;
 
 static KEYS: Lazy<Keys> = Lazy::new(|| {
     let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
@@ -135,16 +152,9 @@ struct AuthBody {
     token_type: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct AuthPayload {
-    client_id: String,
-    client_secret: String,
-}
-
 #[derive(Debug)]
 enum AuthError {
     WrongCredentials,
-    MissingCredentials,
     TokenCreation,
     InvalidToken,
 }
@@ -181,7 +191,7 @@ async fn main() {
                 .concurrency_limit(1024)
                 .timeout(Duration::from_secs(10))
                 .layer(TraceLayer::new_for_http())
-                .layer(Extension(SharedState::default()))
+                .layer(Extension(Arc::new(AppState::new())))
                 .into_inner(),        )
         .fallback(handler_404.into_service());
 
@@ -197,7 +207,7 @@ async fn serve(app: Router) {
 }
 
 async fn kv_list_keys(Extension(state): Extension<SharedState>) -> Json<String> {
-    let db = &state.read().unwrap().db;
+    let db = &state.session.read().unwrap();
 
     let result = db.keys()
         .map(|key| key.to_string())
@@ -207,7 +217,7 @@ async fn kv_list_keys(Extension(state): Extension<SharedState>) -> Json<String> 
 }
 
 async fn kv_set(Path(key): Path<String>, Extension(state): Extension<SharedState>, bytes: Bytes) -> impl IntoResponse {
-    state.write().unwrap().db.insert(key, bytes);
+    state.session.write().unwrap().insert(key, bytes);
 
     return (
         StatusCode::NO_CONTENT,
@@ -216,7 +226,7 @@ async fn kv_set(Path(key): Path<String>, Extension(state): Extension<SharedState
 }
 
 async fn kv_delete(Path(key): Path<String>, Extension(state): Extension<SharedState>) -> impl IntoResponse {
-    state.write().unwrap().db.remove(&key);
+    state.session.write().unwrap().remove(&key);
 
     return (
         StatusCode::NO_CONTENT,
@@ -228,7 +238,7 @@ async fn kv_get(
     Path(key): Path<String>,
     Extension(state): Extension<SharedState>,
 ) -> impl IntoResponse {
-    let db = &state.read().unwrap().db;
+    let db = &state.session.read().unwrap();
 
     if let Some(value) = db.get(&key) {
         let content = from_utf8(&value.clone()).unwrap().to_owned();

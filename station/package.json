@@ -13,6 +13,7 @@
     "lit": "^2.6.1"
   },
   "devDependencies": {
+    "ts-lit-plugin": "^1.2.1",
     "vite": "^4.3.2"
   }
 }
