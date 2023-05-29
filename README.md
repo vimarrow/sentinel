@@ -9,8 +9,11 @@ It's a hybrid web serderer that combines the power of SPA and SSR strategies in 
 
 ## Structure
 There are 2 main components:
-- `/satellite` - the Backend code, written in Rust, that will run on the Server side
-- `/station` - It's the Frontend part, using Web Components with Lit.js
+* `/satellite` - the Backend code for the Web Server. It has dependecies for the followind UNIX sockets:
+  - `/star` -  the KV store used to keep the app state
+  - `/stor` - SQLite wrapper use to host client data
+  - `/sonar` - journaling and audit module that logs every operation that runs on the app
+* `/station` - It's the Frontend part, using Web Components with Lit.js
 
 ## WIP
 I'll add more to this Readme soon.
