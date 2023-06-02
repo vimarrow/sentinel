@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     collections::HashMap,
     sync::{Arc, RwLock},
-    time::Duration,
+    time::{Duration, Instant},
     str::from_utf8,
     fmt::Display,
     time::SystemTime,
@@ -32,22 +32,48 @@ use tower::{BoxError, ServiceBuilder};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Algorithm, Validation};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+struct SocketConnector {
+    path: String,
+    last_used: Instant,
+    last_stream: UnixStream,
+}
+
+impl SocketConnector {
+    fn new(path: String) -> Self {
+        let stream = UnixStream::connect(&path).unwrap();
+        SocketConnector {
+            path,
+            last_used: Instant::now(),
+            last_stream: stream
+        }
+    }
+    fn write_n_read(&mut self, data: Vec<u8>) -> Result<Vec<u8>, u8> {
+        if self.last_used.elapsed() > Duration::from_secs(20) {
+            let stream = UnixStream::connect(self.path.clone()).unwrap();
+            self.last_stream = stream;
+        }
+        self.last_stream.write_all(data.as_slice()).unwrap();
+        self.last_used = Instant::now();
+        self.last_stream.flush().unwrap();
+        let mut buf = [0; 1048594];
+        let count = self.last_stream.read(&mut buf).unwrap();
+        return Ok(buf[..count].to_vec());
+    }
+}
+
 struct AppState {
-    star: RwLock<UnixStream>,
-    sonar: RwLock<UnixStream>,
-    store: RwLock<UnixStream>,
+    star: RwLock<SocketConnector>,
+    sonar: RwLock<SocketConnector>,
+    store: RwLock<SocketConnector>,
     session: RwLock<HashMap<String, Bytes>>
 }
 
 impl AppState {
     fn new() -> AppState {
-        let star = UnixStream::connect("/tmp/sentinel/star.sock").unwrap();
-        let sonar = UnixStream::connect("/tmp/sentinel/sonar.sock").unwrap();
-        let store = UnixStream::connect("/tmp/sentinel/store.sock").unwrap();
         AppState {
-            star: RwLock::new(star),
-            sonar: RwLock::new(sonar), 
-            store: RwLock::new(store),
+            star: RwLock::new(SocketConnector::new("/tmp/sentinel/star.sock".to_owned())),
+            sonar: RwLock::new(SocketConnector::new("/tmp/sentinel/sonar.sock".to_owned())), 
+            store: RwLock::new(SocketConnector::new("/tmp/sentinel/store.sock".to_owned())),
             session: RwLock::new(HashMap::<String, Bytes>::new())
         }
     }
@@ -204,14 +230,8 @@ async fn main() {
 async fn meow(Extension(state): Extension<SharedState>) -> impl IntoResponse {
     let mut socket = state.star.write().unwrap();
 
-    socket.write_all(b"Meow!The best for testing:3\n").unwrap();
-    socket.flush().unwrap();
-    let mut buf = [0; 1048576];
-    socket.read(&mut buf).unwrap();
-    let rsp = buf[0];
+    let rsp = socket.write_n_read(vec![1,1,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,16,16]).unwrap();
     println!("{:?}", rsp);
-
-    //socket.shutdown(std::net::Shutdown::Both).unwrap();
 
     return (
         StatusCode::OK,

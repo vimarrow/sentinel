@@ -41,7 +41,7 @@ fn handle_client(mut stream: UnixStream, store: Arc<RwLock<Store>>) {
     println!("Incomming: {:?}", addr);
     loop {
 
-        let mut buf: [u8; 1048576] = [0; 1048576];
+        let mut buf: [u8; 1048594] = [0; 1048594];
         let count = match stream.read(&mut buf) {
             Ok(size) => size,
             Err(err) => {
