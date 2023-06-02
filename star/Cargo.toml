@@ -6,3 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+kv = "0.24"
+idgenerator = "2.0"
+phf = { version = "0.11", default-features = false, features = ["macros"] } 

@@ -6,7 +6,7 @@ use std::{
     str::from_utf8,
     fmt::Display,
     time::SystemTime,
-    os::unix::net::UnixStream,
+    os::unix::net::UnixStream, io::{Write, Read},
 };
 use axum::{
     async_trait,
@@ -41,9 +41,9 @@ struct AppState {
 
 impl AppState {
     fn new() -> AppState {
-        let star = UnixStream::connect("/path/to/my/socket").unwrap();
-        let sonar = UnixStream::connect("/path/to/my/socket").unwrap();
-        let store = UnixStream::connect("/path/to/my/socket").unwrap();
+        let star = UnixStream::connect("/tmp/sentinel/star.sock").unwrap();
+        let sonar = UnixStream::connect("/tmp/sentinel/sonar.sock").unwrap();
+        let store = UnixStream::connect("/tmp/sentinel/store.sock").unwrap();
         AppState {
             star: RwLock::new(star),
             sonar: RwLock::new(sonar), 
@@ -175,6 +175,7 @@ async fn main() {
         .allow_methods([Method::GET, Method::POST, Method::DELETE]);
 
     let app = Router::new()
+        .route("/meow", get(meow))
         .route("/session", get(session))
         .route("/kvlist", get(kv_list_keys))
         .route(
@@ -192,11 +193,30 @@ async fn main() {
                 .timeout(Duration::from_secs(10))
                 .layer(TraceLayer::new_for_http())
                 .layer(Extension(Arc::new(AppState::new())))
-                .into_inner(),        )
+                .into_inner(),
+            )
         .fallback(handler_404.into_service());
 
     serve(app).await;
 
+}
+
+async fn meow(Extension(state): Extension<SharedState>) -> impl IntoResponse {
+    let mut socket = state.star.write().unwrap();
+
+    socket.write_all(b"Meow!The best for testing:3\n").unwrap();
+    socket.flush().unwrap();
+    let mut buf = [0; 1048576];
+    socket.read(&mut buf).unwrap();
+    let rsp = buf[0];
+    println!("{:?}", rsp);
+
+    //socket.shutdown(std::net::Shutdown::Both).unwrap();
+
+    return (
+        StatusCode::OK,
+        "Ok",
+    );
 }
 
 async fn serve(app: Router) {
