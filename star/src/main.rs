@@ -6,8 +6,15 @@ use std::{
     path::Path,
     thread, usize, fs, time::Duration,
 };
+use serde::{Deserialize, Serialize};
 
-static BUCKETS: [&'static str; 10] = ["config", "groups", "users", "flows", "actions", "params", "tables", "queries", "files", "links"];
+static BUCKETS: [&'static str; 10] = ["config", "group", "user", "table", "flow", "step", "commit", "param", "query", "migration"];
+
+#[derive(Debug, Serialize, Deserialize)]
+struct KeyValMap {
+    key: Vec<u8>,
+    val: Vec<u8>,
+}
 
 fn get_bucket<'a, K: Key<'a>, V: Value>(buffer: &[u8], store: &Arc<RwLock<Store>>) -> Result<Bucket<'a, K, V>, u8> {
     let bucket_raw = usize::from(buffer[1]);
@@ -113,7 +120,6 @@ fn handle_client(mut stream: UnixStream, store: Arc<RwLock<Store>>) {
                 }
             },
             3 => { // DEL Key
-                let key = &buf[2..18].to_vec();
                 let value = bucket.remove(key);
                 match value {
                     Ok(_) => {
@@ -128,6 +134,28 @@ fn handle_client(mut stream: UnixStream, store: Arc<RwLock<Store>>) {
                 if flush_op.is_err() {
                     println!("Failed to flush");
                 }
+            },
+            4 => { // GET All
+                let mut iter = bucket.iter();
+                let ic = buf[18];
+                let mut ia = 0;
+                let mut items: Vec<KeyValMap> = vec![];
+                while ia < ic {
+                    ia += 1;
+                    if let Some(Ok(curs)) = iter.next() {
+                        let item = KeyValMap {
+                            key: curs.key().unwrap(),
+                            val: curs.value().unwrap(),
+                        };
+                        items.push(item);
+                    } else {
+                        break;
+                    }
+                }
+                let mut serialized_items = serde_json::to_vec(&items).unwrap();
+                let mut resp: Vec<u8> = vec![cmd, 0];
+                resp.append(&mut serialized_items);
+                stream.write_all(&resp).unwrap();
             },
             _ => {
                 println!("UNKNOWN CMD!");
